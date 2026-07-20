@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Shelldon</title>
+<meta name="description" content="An 8-bit shell that helps ADHD brains stop stalling on small decisions." />
+<meta name="theme-color" content="#0b0b14" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Shelldon" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="crt">
+  <header class="topbar">
+    <div class="streak" id="streak" title="Decisions actually acted on, in a row">🔥 <span id="streakCount">0</span></div>
+    <h1 class="title">SHELLDON</h1>
+    <button class="icon-btn" id="helpBtn" aria-label="How it works" title="How it works">?</button>
+  </header>
+
+  <div class="modes" role="tablist" aria-label="Decision mode">
+    <button class="mode-btn active" data-mode="task" role="tab" aria-selected="true">TASK MODE</button>
+    <button class="mode-btn" data-mode="life" role="tab" aria-selected="false">LIFE MODE</button>
+  </div>
+
+  <main class="stage">
+    <div class="shell-wrap" id="shellWrap">
+      <div class="shell-figure" id="shellFigure"></div>
+    </div>
+
+    <div class="bubble" id="bubble">
+      <p id="bubbleText">Give me something to work with. I can't read minds. I can barely read.</p>
+    </div>
+
+    <div class="countdown-wrap hidden" id="countdownWrap">
+      <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
+      <div class="countdown-label" id="countdownLabel">Lock it in&hellip; 10</div>
+    </div>
+
+    <div class="post-actions hidden" id="postActions">
+      <button class="pixel-btn btn-done" id="didItBtn">✅ DID IT</button>
+      <button class="pixel-btn btn-skip" id="skipBtn">⏭ SKIP</button>
+      <button class="pixel-btn btn-reroll" id="rerollBtn">🔁 ASK AGAIN</button>
+    </div>
+  </main>
+
+  <section class="entry" id="entry">
+    <div class="entry-row">
+      <input type="text" id="optionInput" placeholder="Type an option&hellip;" maxlength="40" autocomplete="off" />
+      <button class="pixel-btn btn-add" id="addBtn">ADD</button>
+    </div>
+    <ul class="chips" id="chips" aria-live="polite"></ul>
+    <p class="hint" id="entryHint">Add 2-5 options, then ask the shell.</p>
+    <button class="pixel-btn btn-ask" id="askBtn" disabled>🐚 ASK SHELLDON</button>
+  </section>
+</div>
+
+<div class="modal hidden" id="helpModal">
+  <div class="modal-card">
+    <h2>How Shelldon works</h2>
+    <ul>
+      <li>Pick a mode: tasks to do, or everyday life stuff.</li>
+      <li>Add 2-5 options you're stuck between.</li>
+      <li>Tap "Ask Shelldon" (or the shell itself). He picks ONE.</li>
+      <li>You get 10 seconds before it locks in. One re-roll allowed &mdash; that's it.</li>
+      <li>Mark it done or skip it. No guilt either way. Streak counts days you follow through.</li>
+    </ul>
+    <button class="pixel-btn" id="closeHelp">GOT IT</button>
+  </div>
+</div>
+
+<script src="shell-design.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
