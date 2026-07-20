@@ -19,8 +19,16 @@
   <header class="topbar">
     <div class="streak" id="streak" title="Decisions actually acted on, in a row">🔥 <span id="streakCount">0</span></div>
     <h1 class="title">SHELLDON</h1>
-    <button class="icon-btn" id="helpBtn" aria-label="How it works" title="How it works">?</button>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="bellBtn" aria-label="Enable reminders" title="Enable reminders">🔔</button>
+      <button class="icon-btn" id="helpBtn" aria-label="How it works" title="How it works">?</button>
+    </div>
   </header>
+
+  <section class="queue hidden" id="queueSection">
+    <h2 class="queue-title">Unfinished business</h2>
+    <ul class="queue-list" id="queueList"></ul>
+  </section>
 
   <div class="modes" role="tablist" aria-label="Decision mode">
     <button class="mode-btn active" data-mode="task" role="tab" aria-selected="true">TASK MODE</button>
@@ -45,6 +53,18 @@
       <button class="pixel-btn btn-done" id="didItBtn">✅ DID IT</button>
       <button class="pixel-btn btn-skip" id="skipBtn">⏭ SKIP</button>
       <button class="pixel-btn btn-reroll" id="rerollBtn">🔁 ASK AGAIN</button>
+      <button class="pixel-btn btn-remind-toggle" id="remindToggleBtn">⏰ REMIND ME</button>
+    </div>
+
+    <div class="remind-panel hidden" id="remindPanel">
+      <p class="remind-label">When?</p>
+      <div class="time-chips">
+        <button class="pixel-btn time-chip" data-mins="15">15 MIN</button>
+        <button class="pixel-btn time-chip" data-mins="60">1 HR</button>
+        <button class="pixel-btn time-chip" data-preset="tonight">TONIGHT</button>
+        <button class="pixel-btn time-chip" data-preset="tomorrow">TOMORROW</button>
+      </div>
+      <input type="text" id="stepOneInput" placeholder="optional: what's step one?" maxlength="60" autocomplete="off" />
     </div>
   </main>
 
@@ -67,7 +87,10 @@
       <li>Add 2-5 options you're stuck between.</li>
       <li>Tap "Ask Shelldon" (or the shell itself). He picks ONE.</li>
       <li>You get 10 seconds before it locks in. One re-roll allowed &mdash; that's it.</li>
-      <li>Mark it done or skip it. No guilt either way. Streak counts days you follow through.</li>
+      <li>Mark it done or skip it right away, or tap "Remind me" to set a deadline instead.</li>
+      <li>Enable the bell (top right) for a real push notification when a deadline hits.</li>
+      <li>Miss one? It'll be waiting for you next time you open the app &mdash; no guilt, but no hiding either.</li>
+      <li>Streak counts days you actually follow through.</li>
     </ul>
     <button class="pixel-btn" id="closeHelp">GOT IT</button>
   </div>

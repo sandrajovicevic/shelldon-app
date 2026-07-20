@@ -1,0 +1,21 @@
+name = "shelldon-reminders"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Fires every minute to check for due commitments and send Web Push reminders.
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+ALLOWED_ORIGIN = "https://sandrajovicevic.github.io"
+VAPID_SUBJECT = "mailto:sandra.s.jovicevic@gmail.com"
+
+# Created via `wrangler kv namespace create SHELLDON_KV`, id filled in after creation.
+[[kv_namespaces]]
+binding = "SHELLDON_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets (set via `wrangler secret put`, never stored here):
+#   VAPID_PUBLIC_KEY
+#   VAPID_PRIVATE_KEY

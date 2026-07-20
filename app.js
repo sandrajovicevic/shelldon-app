@@ -24,10 +24,28 @@
   var helpBtn = document.getElementById('helpBtn');
   var closeHelp = document.getElementById('closeHelp');
   var helpModal = document.getElementById('helpModal');
+  var bellBtn = document.getElementById('bellBtn');
+  var queueSection = document.getElementById('queueSection');
+  var queueList = document.getElementById('queueList');
+  var remindToggleBtn = document.getElementById('remindToggleBtn');
+  var remindPanel = document.getElementById('remindPanel');
+  var timeChips = document.querySelectorAll('.time-chip');
+  var stepOneInput = document.getElementById('stepOneInput');
 
   var MAX_OPTIONS = 5;
   var MIN_OPTIONS = 2;
   var COMMIT_SECONDS = 10;
+  var SNOOZE_MINUTES = 15;
+
+  // Public by design (this is what "public" means for VAPID). Filled in after the
+  // Worker is deployed -- see worker/wrangler.toml for the matching private key.
+  var VAPID_PUBLIC_KEY = 'BDa0yzmp2vLuI7FJknJbX3K3LIiPQgs5lWNOhdsQihim92F3v5ChApv14pFGZIQiNX5XZHDNXiRkAEXJO8_rIQI';
+  // TODO: replace with the real deployed Worker URL (e.g. https://shelldon-reminders.<subdomain>.workers.dev)
+  var WORKER_URL = 'https://shelldon-reminders.YOUR_SUBDOMAIN.workers.dev';
+
+  function isWorkerConfigured() {
+    return WORKER_URL.indexOf('YOUR_SUBDOMAIN') === -1;
+  }
 
   // ---------- Voice lines ----------
   var IDLE_PROMPTS = {
@@ -63,6 +81,12 @@
     'Two options minimum. I need something to choose between.', "One option isn't a decision, that's just a plan.",
   ];
 
+  function snoozeLine(count) {
+    if (count <= 1) return "Fine. One more. I'm keeping a tally.";
+    if (count === 2) return "That's two. I'm still counting.";
+    return "That's " + count + " now. Impressive, in a concerning way.";
+  }
+
   // ---------- State ----------
   var mode = 'task';
   var options = [];
@@ -70,6 +94,7 @@
   var rerollUsed = false;
   var countdownTimer = null;
   var phase = 'entry'; // entry -> deciding -> revealed -> locked
+  var queueRefreshTimer = null;
 
   // ---------- Shell rendering ----------
   function svgFromGrid(grid) {
@@ -159,12 +184,18 @@
   }
 
   function loadStore() {
+    var store;
     try {
       var raw = localStorage.getItem(STORE_KEY);
-      return raw ? JSON.parse(raw) : { streak: 0, lastActive: null };
+      store = raw ? JSON.parse(raw) : {};
     } catch (e) {
-      return { streak: 0, lastActive: null };
+      store = {};
     }
+    if (typeof store.streak !== 'number') store.streak = 0;
+    if (!store.lastActive) store.lastActive = null;
+    if (!Array.isArray(store.commitments)) store.commitments = [];
+    if (typeof store.pushEnabled !== 'boolean') store.pushEnabled = false;
+    return store;
   }
 
   function saveStore(store) {
@@ -202,6 +233,251 @@
     }
     saveStore(store);
     renderStreak();
+  }
+
+  // ---------- Commitments & reminders ----------
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function computeDueAt(opts) {
+    if (opts.mins) return Date.now() + opts.mins * 60000;
+    var now = new Date();
+    if (opts.preset === 'tonight') {
+      if (now.getHours() >= 20) return Date.now() + 2 * 60 * 60000;
+      var tonight = new Date();
+      tonight.setHours(20, 0, 0, 0);
+      return tonight.getTime();
+    }
+    if (opts.preset === 'tomorrow') {
+      var tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      return tomorrow.getTime();
+    }
+    return Date.now() + 60 * 60000;
+  }
+
+  function formatDueLabel(ms) {
+    var d = new Date(ms);
+    var now = new Date();
+    var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return timeStr;
+    var tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    if (d.toDateString() === tomorrow.toDateString()) return 'tomorrow ' + timeStr;
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + timeStr;
+  }
+
+  function minutesOverdue(dueAt) {
+    return Math.floor((Date.now() - dueAt) / 60000);
+  }
+
+  function severityState(c) {
+    var mins = minutesOverdue(c.dueAt);
+    if (mins >= 120 || c.snoozeCount >= 3) return 'fed_up';
+    return 'annoyed';
+  }
+
+  function getOverdueCommitments() {
+    var now = Date.now();
+    return store.commitments
+      .filter(function (c) { return c.status === 'pending' && c.dueAt <= now; })
+      .sort(function (a, b) { return a.dueAt - b.dueAt; });
+  }
+
+  function buildPushMessage(c) {
+    var base = c.text + '.';
+    if (c.stepOne) base += ' Step one: ' + c.stepOne + '.';
+    return base + ' Still waiting.';
+  }
+
+  function postCommitmentToWorker(c) {
+    if (!isWorkerConfigured() || !store.pushEnabled) return;
+    fetch(WORKER_URL + '/commitments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: c.id, dueAt: c.dueAt, message: buildPushMessage(c) }),
+    }).catch(function () {});
+  }
+
+  function cancelWorkerCommitment(id) {
+    if (!isWorkerConfigured()) return;
+    fetch(WORKER_URL + '/commitments/' + encodeURIComponent(id), { method: 'DELETE' }).catch(function () {});
+  }
+
+  function refreshIdleFace() {
+    if (phase !== 'entry') return;
+    var overdue = getOverdueCommitments();
+    if (overdue.length === 0) {
+      setShellState('idle');
+      return;
+    }
+    var worst = overdue[0];
+    overdue.forEach(function (c) {
+      if (severityState(c) === 'fed_up') worst = c;
+    });
+    setShellState(severityState(worst));
+  }
+
+  function resolveQueueItem(id, status) {
+    var c = store.commitments.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    c.status = status;
+    saveStore(store);
+    cancelWorkerCommitment(id);
+    if (status === 'done') {
+      registerActedOn();
+      setBubble(pick(DID_IT_LINES), true);
+      playDoneSound();
+    } else {
+      setBubble(pick(SKIP_LINES), true);
+      playSkipSound();
+    }
+    renderQueue();
+  }
+
+  function snoozeQueueItem(id) {
+    var c = store.commitments.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    c.dueAt = Date.now() + SNOOZE_MINUTES * 60000;
+    c.snoozeCount = (c.snoozeCount || 0) + 1;
+    saveStore(store);
+    postCommitmentToWorker(c);
+    setBubble(snoozeLine(c.snoozeCount), true);
+    playClickSound();
+    renderQueue();
+  }
+
+  function renderQueue() {
+    var overdue = getOverdueCommitments();
+    queueList.innerHTML = '';
+    if (overdue.length === 0) {
+      queueSection.classList.add('hidden');
+      refreshIdleFace();
+      return;
+    }
+    queueSection.classList.remove('hidden');
+    overdue.forEach(function (c) {
+      var li = document.createElement('li');
+      li.className = 'queue-item';
+
+      var textP = document.createElement('p');
+      textP.className = 'queue-item-text';
+      textP.textContent = c.text + (c.stepOne ? ' — step one: ' + c.stepOne : '');
+
+      var metaP = document.createElement('p');
+      metaP.className = 'queue-item-meta';
+      var mins = minutesOverdue(c.dueAt);
+      var overdueLabel = mins < 60 ? mins + 'm overdue' : Math.floor(mins / 60) + 'h overdue';
+      metaP.textContent = overdueLabel + (c.snoozeCount > 0 ? ' · snoozed ' + c.snoozeCount + 'x' : '');
+
+      var actions = document.createElement('div');
+      actions.className = 'queue-item-actions';
+
+      var doneBtn = document.createElement('button');
+      doneBtn.className = 'pixel-btn';
+      doneBtn.textContent = '✅ DONE';
+      doneBtn.addEventListener('click', function () { resolveQueueItem(c.id, 'done'); });
+
+      var snoozeBtn = document.createElement('button');
+      snoozeBtn.className = 'pixel-btn';
+      snoozeBtn.textContent = '😴 +15M';
+      snoozeBtn.addEventListener('click', function () { snoozeQueueItem(c.id); });
+
+      var skipBtnQ = document.createElement('button');
+      skipBtnQ.className = 'pixel-btn';
+      skipBtnQ.textContent = '⏭';
+      skipBtnQ.addEventListener('click', function () { resolveQueueItem(c.id, 'skipped'); });
+
+      actions.appendChild(doneBtn);
+      actions.appendChild(snoozeBtn);
+      actions.appendChild(skipBtnQ);
+      li.appendChild(textP);
+      li.appendChild(metaP);
+      li.appendChild(actions);
+      queueList.appendChild(li);
+    });
+    refreshIdleFace();
+  }
+
+  function scheduleReminder(opts) {
+    if (phase !== 'revealed' && phase !== 'locked') return;
+    if (lastPickIndex < 0 || !options[lastPickIndex]) return;
+
+    var dueAt = computeDueAt(opts);
+    var c = {
+      id: uid(),
+      text: options[lastPickIndex],
+      stepOne: stepOneInput.value.trim() || null,
+      dueAt: dueAt,
+      createdAt: Date.now(),
+      status: 'pending',
+      snoozeCount: 0,
+    };
+    store.commitments.push(c);
+    saveStore(store);
+    postCommitmentToWorker(c);
+
+    clearInterval(countdownTimer);
+    setBubble("Fine. I'll bug you at " + formatDueLabel(dueAt) + '.', true);
+    playClickSound();
+    postActions.classList.add('hidden');
+    countdownWrap.classList.add('hidden');
+    remindPanel.classList.add('hidden');
+    remindToggleBtn.classList.remove('active');
+    stepOneInput.value = '';
+    setTimeout(function () { resetToEntry(); renderQueue(); }, 1400);
+  }
+
+  // ---------- Push subscription ----------
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function subscribePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setBubble("Your browser won't do push. Noted. Moving on.", false);
+      return;
+    }
+    if (!isWorkerConfigured()) {
+      setBubble("Reminders aren't wired up yet. Ask again later.", false);
+      return;
+    }
+    Notification.requestPermission().then(function (permission) {
+      if (permission !== 'granted') {
+        setBubble('Fine. Be that way. No nudges then.', false);
+        return;
+      }
+      navigator.serviceWorker.ready
+        .then(function (reg) {
+          return reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          });
+        })
+        .then(function (sub) {
+          return fetch(WORKER_URL + '/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub),
+          });
+        })
+        .then(function () {
+          store.pushEnabled = true;
+          saveStore(store);
+          bellBtn.classList.add('active');
+          setBubble("Fine. I'll bug you when it's time. Don't make me regret this.", false);
+        })
+        .catch(function () {
+          setBubble('Something broke setting that up. Try again in a bit.', false);
+        });
+    });
   }
 
   // ---------- Helpers ----------
@@ -257,10 +533,13 @@
     renderChips();
     countdownWrap.classList.add('hidden');
     postActions.classList.add('hidden');
+    remindPanel.classList.add('hidden');
+    remindToggleBtn.classList.remove('active');
+    stepOneInput.value = '';
     entrySection.classList.remove('hidden');
-    setShellState('idle');
     setBubble(IDLE_PROMPTS[mode], false);
     clearInterval(countdownTimer);
+    refreshIdleFace();
   }
 
   // ---------- Core decide flow ----------
@@ -321,6 +600,9 @@
     skipBtn.disabled = false;
     rerollBtn.disabled = rerollUsed;
     rerollBtn.title = rerollUsed ? "No. You asked, I answered. We're done here." : '';
+    remindPanel.classList.add('hidden');
+    remindToggleBtn.classList.remove('active');
+    stepOneInput.value = '';
     startCountdown();
   }
 
@@ -406,10 +688,28 @@
   closeHelp.addEventListener('click', function () { helpModal.classList.add('hidden'); });
   helpModal.addEventListener('click', function (e) { if (e.target === helpModal) helpModal.classList.add('hidden'); });
 
+  remindToggleBtn.addEventListener('click', function () {
+    var willShow = remindPanel.classList.contains('hidden');
+    remindPanel.classList.toggle('hidden', !willShow);
+    remindToggleBtn.classList.toggle('active', willShow);
+  });
+
+  timeChips.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mins = btn.getAttribute('data-mins');
+      var preset = btn.getAttribute('data-preset');
+      scheduleReminder(mins ? { mins: parseInt(mins, 10) } : { preset: preset });
+    });
+  });
+
+  bellBtn.addEventListener('click', subscribePush);
+
   // ---------- Init ----------
-  setShellState('idle');
   setBubble(IDLE_PROMPTS[mode], false);
   updateAskAvailability();
+  if (store.pushEnabled) bellBtn.classList.add('active');
+  renderQueue();
+  queueRefreshTimer = setInterval(renderQueue, 30000);
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

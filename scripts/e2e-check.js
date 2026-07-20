@@ -88,6 +88,89 @@ const server = http.createServer((req, res) => {
   const streakPersisted = await page.textContent('#streakCount');
   console.log('streak persisted after reload:', streakPersisted);
 
+  // ---- Remind flow: schedule a reminder for the current decision ----
+  await page.click('[data-mode="task"]');
+  for (const opt of ['Dishes', 'Vacuum']) {
+    await page.fill('#optionInput', opt);
+    await page.click('#addBtn');
+  }
+  await page.click('#askBtn');
+  await page.waitForTimeout(900);
+  await page.click('#remindToggleBtn');
+  await page.fill('#stepOneInput', 'open the dishwasher');
+  await page.click('[data-mins="15"]');
+  await page.waitForTimeout(1600); // resets after 1.4s
+  const bubbleAfterRemind = await page.textContent('#bubbleText');
+  console.log('bubble after scheduling reminder:', bubbleAfterRemind);
+  const commitmentsAfterSchedule = await page.evaluate(() => JSON.parse(localStorage.getItem('shelldon_v1')).commitments.length);
+  console.log('commitments stored after scheduling (expect 1):', commitmentsAfterSchedule);
+
+  // ---- Inject an overdue commitment directly (avoids waiting real minutes) ----
+  await page.evaluate(() => {
+    const store = JSON.parse(localStorage.getItem('shelldon_v1'));
+    store.commitments = [{
+      id: 'overdue-test-1',
+      text: 'Reply to emails',
+      stepOne: null,
+      dueAt: Date.now() - 10 * 60000, // 10 min overdue -> expect 'annoyed'
+      createdAt: Date.now() - 20 * 60000,
+      status: 'pending',
+      snoozeCount: 0,
+    }];
+    localStorage.setItem('shelldon_v1', JSON.stringify(store));
+  });
+  await page.reload();
+  await page.waitForTimeout(200);
+
+  const queueVisible = await page.getAttribute('#queueSection', 'class');
+  console.log('queue section class after overdue injected (should not contain hidden):', queueVisible);
+  const queueItemCount = await page.$$eval('#queueList .queue-item', (els) => els.length);
+  console.log('queue item count (expect 1):', queueItemCount);
+  await page.screenshot({ path: path.join(ROOT, 'scripts', 'shot-7-overdue-queue.png') });
+
+  // snooze it, confirm dueAt pushed out and count incremented
+  await page.click('.queue-item-actions >> text=😴 +15M');
+  await page.waitForTimeout(200);
+  const afterSnooze = await page.evaluate(() => JSON.parse(localStorage.getItem('shelldon_v1')).commitments[0]);
+  console.log('after snooze -> snoozeCount (expect 1), dueAt in future (expect true):', afterSnooze.snoozeCount, afterSnooze.dueAt > Date.now());
+  const queueHiddenAfterSnooze = await page.getAttribute('#queueSection', 'class');
+  console.log('queue section class after snoozing the only item (expect hidden):', queueHiddenAfterSnooze);
+
+  // inject a heavily-overdue + repeatedly-snoozed commitment -> expect 'fed_up' face
+  await page.evaluate(() => {
+    const store = JSON.parse(localStorage.getItem('shelldon_v1'));
+    store.commitments = [{
+      id: 'overdue-test-2',
+      text: 'Call the dentist',
+      stepOne: null,
+      dueAt: Date.now() - 3 * 60 * 60000, // 3 hours overdue
+      createdAt: Date.now() - 4 * 60 * 60000,
+      status: 'pending',
+      snoozeCount: 4,
+    }];
+    localStorage.setItem('shelldon_v1', JSON.stringify(store));
+  });
+  await page.reload();
+  await page.waitForTimeout(200);
+  const fedUpFigureHtml = await page.$eval('#shellFigure svg', (svg) => svg.getAttribute('viewBox'));
+  console.log('shell figure rendered for fed_up state (viewBox present):', fedUpFigureHtml);
+  await page.screenshot({ path: path.join(ROOT, 'scripts', 'shot-8-fedup-face.png') });
+
+  // resolve it via Done -> streak should increment, queue should clear
+  const streakBeforeQueueDone = await page.textContent('#streakCount');
+  await page.click('.queue-item-actions >> text=✅ DONE');
+  await page.waitForTimeout(200);
+  const streakAfterQueueDone = await page.textContent('#streakCount');
+  console.log('streak before/after resolving overdue item via Done:', streakBeforeQueueDone, '->', streakAfterQueueDone);
+  const queueHiddenAfterDone = await page.getAttribute('#queueSection', 'class');
+  console.log('queue section class after resolving last item (expect hidden):', queueHiddenAfterDone);
+
+  // ---- Bell button before the Worker is deployed (WORKER_URL still placeholder) ----
+  await page.click('#bellBtn');
+  await page.waitForTimeout(200);
+  const bubbleAfterBell = await page.textContent('#bubbleText');
+  console.log('bubble after clicking bell pre-deploy (expect "not wired up" message):', bubbleAfterBell);
+
   console.log('console errors:', consoleErrors);
 
   await browser.close();

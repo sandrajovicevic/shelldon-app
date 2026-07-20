@@ -68,6 +68,11 @@ body {
   color: var(--pink-soft);
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .icon-btn {
   width: 28px;
   height: 28px;
@@ -77,6 +82,11 @@ body {
   font-family: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.icon-btn.active {
+  background: var(--teal);
+  box-shadow: 0 0 8px rgba(143,227,220,0.6);
 }
 
 .modes {
@@ -102,6 +112,62 @@ body {
 .mode-btn.active {
   background: var(--teal);
   color: var(--navy);
+}
+
+.queue {
+  background: var(--panel);
+  border: 2px solid var(--pink);
+  box-shadow: 4px 4px 0 var(--outline);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.queue.hidden { display: none; }
+
+.queue-title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--pink-soft);
+  margin: 0 0 8px;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queue-item {
+  background: var(--navy-2);
+  border: 2px solid var(--outline);
+  padding: 8px;
+}
+
+.queue-item-text {
+  font-size: 12px;
+  margin: 0 0 4px;
+  color: var(--cream);
+}
+
+.queue-item-meta {
+  font-size: 10px;
+  color: var(--danger);
+  margin: 0 0 6px;
+  letter-spacing: 0.5px;
+}
+
+.queue-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.queue-item-actions .pixel-btn {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 10px;
 }
 
 .stage {
@@ -254,6 +320,52 @@ body {
 .btn-skip { background: var(--navy-2); flex: 1 1 40%; }
 .btn-reroll { background: var(--pink); color: var(--navy); flex: 1 1 100%; }
 .btn-reroll:disabled { background: var(--panel); color: var(--cream); }
+.btn-remind-toggle { background: var(--navy-2); flex: 1 1 100%; }
+.btn-remind-toggle.active { background: var(--teal); color: var(--navy); }
+
+.remind-panel {
+  width: 100%;
+  background: var(--navy-2);
+  border: 2px solid var(--outline);
+  padding: 10px;
+  margin-top: -4px;
+}
+
+.remind-panel.hidden { display: none; }
+
+.remind-label {
+  font-size: 11px;
+  color: var(--teal);
+  margin: 0 0 6px;
+  letter-spacing: 1px;
+}
+
+.time-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.time-chip {
+  flex: 1 1 40%;
+  padding: 8px 4px;
+  font-size: 11px;
+  background: var(--panel);
+}
+
+#stepOneInput {
+  width: 100%;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px;
+  background: var(--panel);
+  color: var(--cream);
+  border: 2px solid var(--outline);
+}
+
+#stepOneInput::placeholder { color: #6b6b85; }
 
 .entry {
   background: var(--panel);

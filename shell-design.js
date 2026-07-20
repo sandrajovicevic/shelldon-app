@@ -104,7 +104,7 @@
         }
       }
 
-      var lidRows = state === 'annoyed' ? 2 : 1;
+      var lidRows = state === 'annoyed' || state === 'fed_up' ? 2 : 1;
       for (var l = 0; l < lidRows; l++) {
         setPx(grid, ex - 1, eyeY - 1 + l, COLORS.black);
         setPx(grid, ex, eyeY - 1 + l, COLORS.black);
@@ -112,8 +112,14 @@
       }
 
       // pupil
-      var pupilY = state === 'annoyed' ? eyeY + 1 : eyeY;
+      var pupilY = state === 'annoyed' || state === 'fed_up' ? eyeY + 1 : eyeY;
       setPx(grid, ex, pupilY, COLORS.black);
+
+      // furrowed brow converging toward center, for the fully-done-with-you look
+      if (state === 'fed_up') {
+        var innerDir = ex === leftEyeX ? 1 : -1;
+        setPx(grid, ex + innerDir, eyeY - 2, COLORS.black);
+      }
     });
 
     // mouth: flat deadpan line, with subtle variants per state
@@ -132,6 +138,13 @@
       setPx(grid, 16, mouthY, COLORS.black);
       setPx(grid, 17, mouthY, COLORS.black);
       setPx(grid, 18, mouthY, COLORS.black);
+    } else if (state === 'fed_up') {
+      setPx(grid, 13, mouthY + 2, COLORS.black);
+      setPx(grid, 14, mouthY + 1, COLORS.black);
+      setPx(grid, 15, mouthY, COLORS.black);
+      setPx(grid, 16, mouthY, COLORS.black);
+      setPx(grid, 17, mouthY + 1, COLORS.black);
+      setPx(grid, 18, mouthY + 2, COLORS.black);
     } else if (state === 'shake') {
       setPx(grid, 15, mouthY, COLORS.black);
       setPx(grid, 16, mouthY, COLORS.black);
@@ -141,13 +154,22 @@
       for (var mx = 13; mx <= 18; mx++) setPx(grid, mx, mouthY, COLORS.black);
     }
 
-    // pink cheek blush, subtle
-    setPx(grid, leftEyeX - 2, eyeY + 2, COLORS.pinkSoft);
-    setPx(grid, rightEyeX + 2, eyeY + 2, COLORS.pinkSoft);
+    // pink cheek blush, subtle (skipped for fed_up -- not a blushing moment)
+    if (state !== 'fed_up') {
+      setPx(grid, leftEyeX - 2, eyeY + 2, COLORS.pinkSoft);
+      setPx(grid, rightEyeX + 2, eyeY + 2, COLORS.pinkSoft);
+    }
 
     if (state === 'reveal') {
       setPx(grid, 25, 8, COLORS.pink);
       setPx(grid, 26, 7, COLORS.pinkSoft);
+    }
+
+    if (state === 'fed_up') {
+      // small irritation marks, top-left
+      setPx(grid, 8, 6, COLORS.pink);
+      setPx(grid, 9, 7, COLORS.pink);
+      setPx(grid, 7, 8, COLORS.pink);
     }
   }
 
