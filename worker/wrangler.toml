@@ -21,7 +21,7 @@ id = "028501db37e545d0aa87d21d5a99a31f"
 [[d1_databases]]
 binding = "DB"
 database_name = "shelldon-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "ec26d508-0341-447c-b9aa-7c1da7027d85"
 
 # Secrets (set via `wrangler secret put`, never stored here):
 #   VAPID_PUBLIC_KEY
