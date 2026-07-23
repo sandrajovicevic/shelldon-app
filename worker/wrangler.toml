@@ -11,10 +11,17 @@ crons = ["* * * * *"]
 ALLOWED_ORIGIN = "https://sandrajovicevic.github.io"
 VAPID_SUBJECT = "mailto:sandra.s.jovicevic@gmail.com"
 
-# Created via `wrangler kv namespace create SHELLDON_KV`, id filled in after creation.
+# Rate-limit counters only (TTL-based) -- devices/commitments now live in D1 below.
 [[kv_namespaces]]
 binding = "SHELLDON_KV"
 id = "028501db37e545d0aa87d21d5a99a31f"
+
+# Created via `wrangler d1 create shelldon-db`, database_id filled in after creation.
+# Schema applied via `wrangler d1 execute shelldon-db --file=./migrations/0001_init.sql`.
+[[d1_databases]]
+binding = "DB"
+database_name = "shelldon-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 # Secrets (set via `wrangler secret put`, never stored here):
 #   VAPID_PUBLIC_KEY
