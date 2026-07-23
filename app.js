@@ -40,8 +40,7 @@
   // Public by design (this is what "public" means for VAPID). Filled in after the
   // Worker is deployed -- see worker/wrangler.toml for the matching private key.
   var VAPID_PUBLIC_KEY = 'BDa0yzmp2vLuI7FJknJbX3K3LIiPQgs5lWNOhdsQihim92F3v5ChApv14pFGZIQiNX5XZHDNXiRkAEXJO8_rIQI';
-  // TODO: replace with the real deployed Worker URL (e.g. https://shelldon-reminders.<subdomain>.workers.dev)
-  var WORKER_URL = 'https://shelldon-reminders.YOUR_SUBDOMAIN.workers.dev';
+  var WORKER_URL = 'https://shelldon-reminders.fairwolfmaiden.workers.dev';
 
   function isWorkerConfigured() {
     return WORKER_URL.indexOf('YOUR_SUBDOMAIN') === -1;

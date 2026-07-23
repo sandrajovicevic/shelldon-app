@@ -14,7 +14,7 @@ VAPID_SUBJECT = "mailto:sandra.s.jovicevic@gmail.com"
 # Created via `wrangler kv namespace create SHELLDON_KV`, id filled in after creation.
 [[kv_namespaces]]
 binding = "SHELLDON_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "028501db37e545d0aa87d21d5a99a31f"
 
 # Secrets (set via `wrangler secret put`, never stored here):
 #   VAPID_PUBLIC_KEY
