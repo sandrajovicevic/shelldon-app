@@ -194,6 +194,11 @@
     if (!store.lastActive) store.lastActive = null;
     if (!Array.isArray(store.commitments)) store.commitments = [];
     if (typeof store.pushEnabled !== 'boolean') store.pushEnabled = false;
+    if (!store.deviceId) {
+      store.deviceId = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
+    }
     return store;
   }
 
@@ -204,6 +209,10 @@
   }
 
   var store = loadStore();
+  saveStore(store); // persists a freshly generated deviceId (or other migrated defaults) immediately
+
+  function getDeviceId() { return store.deviceId; }
+
   (function reconcileStreakOnLoad() {
     if (store.lastActive) {
       var gap = daysBetween(store.lastActive, todayStr());
@@ -296,13 +305,14 @@
     fetch(WORKER_URL + '/commitments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: c.id, dueAt: c.dueAt, message: buildPushMessage(c) }),
+      body: JSON.stringify({ deviceId: getDeviceId(), id: c.id, dueAt: c.dueAt, message: buildPushMessage(c) }),
     }).catch(function () {});
   }
 
   function cancelWorkerCommitment(id) {
     if (!isWorkerConfigured()) return;
-    fetch(WORKER_URL + '/commitments/' + encodeURIComponent(id), { method: 'DELETE' }).catch(function () {});
+    var url = WORKER_URL + '/commitments/' + encodeURIComponent(id) + '?deviceId=' + encodeURIComponent(getDeviceId());
+    fetch(url, { method: 'DELETE' }).catch(function () {});
   }
 
   function refreshIdleFace() {
@@ -464,7 +474,7 @@
           return fetch(WORKER_URL + '/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sub),
+            body: JSON.stringify({ deviceId: getDeviceId(), subscription: sub }),
           });
         })
         .then(function () {

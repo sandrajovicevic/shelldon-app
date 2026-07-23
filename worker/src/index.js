@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 
-const STATE_KEY = 'state';
 const MAX_COMMITMENT_AGE_MS = 7 * 24 * 60 * 60 * 1000; // prune sent/stale entries after a week
+const DEVICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 function corsHeaders(env) {
   return {
@@ -18,13 +18,28 @@ function json(obj, env, status) {
   });
 }
 
-async function loadState(env) {
-  const raw = await env.SHELLDON_KV.get(STATE_KEY);
+function deviceKey(deviceId) {
+  return 'device:' + deviceId;
+}
+
+async function loadDeviceState(env, deviceId) {
+  const raw = await env.SHELLDON_KV.get(deviceKey(deviceId));
   return raw ? JSON.parse(raw) : { subscription: null, commitments: [] };
 }
 
-async function saveState(env, state) {
-  await env.SHELLDON_KV.put(STATE_KEY, JSON.stringify(state));
+async function saveDeviceState(env, deviceId, state) {
+  await env.SHELLDON_KV.put(deviceKey(deviceId), JSON.stringify(state));
+}
+
+async function forEachDeviceKey(env, fn) {
+  let cursor;
+  do {
+    const page = await env.SHELLDON_KV.list({ prefix: 'device:', cursor });
+    for (const key of page.keys) {
+      await fn(key.name);
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
 }
 
 export default {
@@ -36,16 +51,21 @@ export default {
     }
 
     if (url.pathname === '/subscribe' && request.method === 'POST') {
-      let sub;
+      let body;
       try {
-        sub = await request.json();
+        body = await request.json();
       } catch (e) {
         return json({ error: 'invalid JSON' }, env, 400);
       }
-      if (!sub || !sub.endpoint) return json({ error: 'invalid subscription' }, env, 400);
-      const state = await loadState(env);
-      state.subscription = sub;
-      await saveState(env, state);
+      if (!body || !DEVICE_ID_RE.test(body.deviceId)) {
+        return json({ error: 'invalid deviceId' }, env, 400);
+      }
+      if (!body.subscription || !body.subscription.endpoint) {
+        return json({ error: 'invalid subscription' }, env, 400);
+      }
+      const state = await loadDeviceState(env, body.deviceId);
+      state.subscription = body.subscription;
+      await saveDeviceState(env, body.deviceId, state);
       return json({ ok: true }, env);
     }
 
@@ -56,10 +76,13 @@ export default {
       } catch (e) {
         return json({ error: 'invalid JSON' }, env, 400);
       }
-      if (!body || !body.id || !body.dueAt || !body.message) {
+      if (!body || !DEVICE_ID_RE.test(body.deviceId)) {
+        return json({ error: 'invalid deviceId' }, env, 400);
+      }
+      if (!body.id || !body.dueAt || !body.message) {
         return json({ error: 'id, dueAt, message required' }, env, 400);
       }
-      const state = await loadState(env);
+      const state = await loadDeviceState(env, body.deviceId);
       state.commitments = state.commitments.filter((c) => c.id !== body.id);
       state.commitments.push({
         id: body.id,
@@ -67,15 +90,19 @@ export default {
         dueAt: Number(body.dueAt),
         sent: false,
       });
-      await saveState(env, state);
+      await saveDeviceState(env, body.deviceId, state);
       return json({ ok: true }, env);
     }
 
     if (url.pathname.startsWith('/commitments/') && request.method === 'DELETE') {
       const id = decodeURIComponent(url.pathname.split('/').pop());
-      const state = await loadState(env);
+      const deviceId = url.searchParams.get('deviceId');
+      if (!DEVICE_ID_RE.test(deviceId)) {
+        return json({ error: 'invalid deviceId' }, env, 400);
+      }
+      const state = await loadDeviceState(env, deviceId);
       state.commitments = state.commitments.filter((c) => c.id !== id);
-      await saveState(env, state);
+      await saveDeviceState(env, deviceId, state);
       return json({ ok: true }, env);
     }
 
@@ -83,35 +110,37 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const state = await loadState(env);
-    if (!state.subscription || state.commitments.length === 0) return;
-
     webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
-
     const now = Date.now();
-    let changed = false;
 
-    for (const c of state.commitments) {
-      if (c.sent || c.dueAt > now) continue;
-      try {
-        await webpush.sendNotification(
-          state.subscription,
-          JSON.stringify({ title: 'Shelldon', body: c.message })
-        );
-      } catch (err) {
-        // Subscription likely expired/revoked; drop it so we stop retrying against a dead endpoint.
-        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
-          state.subscription = null;
+    await forEachDeviceKey(env, async (key) => {
+      const raw = await env.SHELLDON_KV.get(key);
+      if (!raw) return;
+      const state = JSON.parse(raw);
+      if (!state.subscription || !state.commitments || state.commitments.length === 0) return;
+
+      let changed = false;
+      for (const c of state.commitments) {
+        if (c.sent || c.dueAt > now) continue;
+        try {
+          await webpush.sendNotification(
+            state.subscription,
+            JSON.stringify({ title: 'Shelldon', body: c.message })
+          );
+        } catch (err) {
+          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+            state.subscription = null;
+          }
         }
+        c.sent = true;
+        changed = true;
       }
-      c.sent = true;
-      changed = true;
-    }
 
-    state.commitments = state.commitments.filter(
-      (c) => !c.sent || now - c.dueAt < MAX_COMMITMENT_AGE_MS
-    );
+      state.commitments = state.commitments.filter(
+        (c) => !c.sent || now - c.dueAt < MAX_COMMITMENT_AGE_MS
+      );
 
-    if (changed) await saveState(env, state);
+      if (changed) await env.SHELLDON_KV.put(key, JSON.stringify(state));
+    });
   },
 };
