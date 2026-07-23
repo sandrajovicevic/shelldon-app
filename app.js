@@ -8,7 +8,8 @@
   var bubbleText = document.getElementById('bubbleText');
   var countdownWrap = document.getElementById('countdownWrap');
   var countdownFill = document.getElementById('countdownFill');
-  var countdownLabel = document.getElementById('countdownLabel');
+  var countdownCaption = document.getElementById('countdownCaption');
+  var countdownDigits = document.getElementById('countdownDigits');
   var postActions = document.getElementById('postActions');
   var didItBtn = document.getElementById('didItBtn');
   var skipBtn = document.getElementById('skipBtn');
@@ -674,7 +675,9 @@
     var remaining = COMMIT_SECONDS;
     countdownFill.style.width = '100%';
     countdownFill.style.background = '';
-    countdownLabel.textContent = 'Lock it in… ' + remaining;
+    countdownCaption.textContent = 'LOCK IT IN';
+    countdownDigits.textContent = String(remaining).padStart(2, '0');
+    countdownDigits.classList.remove('led-locked');
 
     countdownTimer = setInterval(function () {
       remaining -= 1;
@@ -683,13 +686,15 @@
       if (remaining <= 0) {
         clearInterval(countdownTimer);
         phase = 'locked';
-        countdownLabel.textContent = 'Locked in.';
-        countdownFill.style.background = 'var(--pink)';
+        countdownCaption.textContent = 'LOCKED IN';
+        countdownDigits.textContent = '--';
+        countdownDigits.classList.add('led-locked');
+        countdownFill.style.background = 'var(--led)';
         rerollBtn.disabled = true;
         rerollBtn.title = 'Too late for that.';
         setShellState('idle');
       } else {
-        countdownLabel.textContent = 'Lock it in… ' + remaining;
+        countdownDigits.textContent = String(remaining).padStart(2, '0');
       }
     }, 1000);
   }

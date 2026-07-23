@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Shelldon</title>
 <meta name="description" content="An 8-bit shell that helps ADHD brains stop stalling on small decisions." />
-<meta name="theme-color" content="#0b0b14" />
+<meta name="theme-color" content="#4a4358" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Shelldon" />
@@ -46,8 +46,11 @@
     </div>
 
     <div class="countdown-wrap hidden" id="countdownWrap">
+      <div class="led-panel">
+        <span class="led-caption" id="countdownCaption">LOCK IT IN</span>
+        <span class="led-digits" id="countdownDigits">10</span>
+      </div>
       <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
-      <div class="countdown-label" id="countdownLabel">Lock it in&hellip; 10</div>
     </div>
 
     <div class="post-actions hidden" id="postActions">
