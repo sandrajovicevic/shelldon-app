@@ -6,6 +6,8 @@
   var shellFigure = document.getElementById('shellFigure');
   var bubble = document.getElementById('bubble');
   var bubbleText = document.getElementById('bubbleText');
+  var clawCardText = document.getElementById('clawCardText');
+  var clawAside = document.getElementById('clawAside');
   var countdownWrap = document.getElementById('countdownWrap');
   var countdownFill = document.getElementById('countdownFill');
   var countdownCaption = document.getElementById('countdownCaption');
@@ -551,8 +553,20 @@
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
   function setBubble(text, isVerdict) {
+    bubble.classList.remove('card-mode'); // text and the claw card are mutually exclusive
     bubbleText.textContent = text;
     bubble.classList.toggle('verdict', !!isVerdict);
+  }
+
+  // Reveal: the claw drops in holding a card with the picked task.
+  function showCard(choice, asideText) {
+    clawCardText.textContent = choice;
+    clawAside.textContent = asideText;
+    bubble.classList.add('verdict');
+    // restart the drop animation even on a re-roll
+    bubble.classList.remove('card-mode');
+    void bubble.offsetWidth;
+    bubble.classList.add('card-mode');
   }
 
   function updateAskAvailability() {
@@ -655,9 +669,8 @@
     lastPickIndex = idx;
     var choice = options[idx];
 
-    var prefix = isReroll ? pick(REROLL_ASIDES) : pick(REVEAL_PREFIXES);
-    var aside = pick(REVEAL_ASIDES);
-    setBubble(prefix + ' ' + choice + '. ' + aside, true);
+    var aside = isReroll ? pick(REROLL_ASIDES) : pick(REVEAL_ASIDES);
+    showCard(choice, aside);
     setShellState('reveal');
     shellWrap.classList.add('revealing');
     playRevealSound();

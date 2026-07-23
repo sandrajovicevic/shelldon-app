@@ -42,7 +42,27 @@
 
       <!-- live text over the green CRT screen -->
       <div class="screen-overlay" id="bubble">
-        <p id="bubbleText">Give me something to work with. I can't read minds. I can barely read.</p>
+        <p class="screen-text" id="bubbleText">Give me something to work with. I can't read minds. I can barely read.</p>
+
+        <!-- claw-grabs-a-card reveal animation -->
+        <div class="claw-scene" id="clawScene" aria-hidden="true">
+          <div class="claw-grabber">
+            <svg class="claw-svg" viewBox="0 0 120 62" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" aria-hidden="true">
+              <rect x="57" y="0" width="6" height="16" fill="#6f7690"/>
+              <rect x="57" y="0" width="6" height="2" fill="#4a4f66"/>
+              <rect x="50" y="14" width="20" height="14" fill="#9aa0b8" stroke="#2a1a12" stroke-width="2"/>
+              <rect x="54" y="18" width="12" height="4" fill="#c3c8db"/>
+              <polyline points="52,28 40,40 45,52" fill="none" stroke="#2a1a12" stroke-width="8"/>
+              <polyline points="52,28 40,40 45,52" fill="none" stroke="#9aa0b8" stroke-width="4"/>
+              <polyline points="68,28 80,40 75,52" fill="none" stroke="#2a1a12" stroke-width="8"/>
+              <polyline points="68,28 80,40 75,52" fill="none" stroke="#9aa0b8" stroke-width="4"/>
+            </svg>
+            <div class="claw-card"><span id="clawCardText">Wash dishes</span></div>
+            <span class="claw-spark claw-spark-l">✦</span>
+            <span class="claw-spark claw-spark-r">✦</span>
+          </div>
+          <p class="claw-aside" id="clawAside">Was that so hard?</p>
+        </div>
       </div>
 
       <!-- live digits over the LED strip -->

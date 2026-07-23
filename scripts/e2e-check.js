@@ -51,8 +51,10 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(ROOT, 'scripts', 'shot-4-reveal.png') });
 
-  const bubble = await page.textContent('#bubbleText');
-  console.log('verdict bubble text:', bubble);
+  const bubble = await page.textContent('#clawCardText');
+  console.log('claw card task:', bubble);
+  const cardMode = await page.getAttribute('#bubble', 'class');
+  console.log('screen in card-mode at reveal (should contain card-mode):', cardMode);
 
   const postActionsHidden = await page.getAttribute('#postActions', 'class');
   console.log('postActions class (should not contain hidden):', postActionsHidden);
@@ -60,8 +62,8 @@ const server = http.createServer((req, res) => {
   // reroll once
   await page.click('#rerollBtn');
   await page.waitForTimeout(200);
-  const bubbleAfterReroll = await page.textContent('#bubbleText');
-  console.log('verdict after reroll:', bubbleAfterReroll);
+  const bubbleAfterReroll = await page.textContent('#clawCardText');
+  console.log('claw card task after reroll:', bubbleAfterReroll);
   const rerollDisabled = await page.getAttribute('#rerollBtn', 'disabled');
   console.log('rerollBtn disabled after use (expect "" or "disabled"):', rerollDisabled);
 
