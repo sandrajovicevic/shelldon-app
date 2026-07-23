@@ -21,6 +21,7 @@
     <h1 class="title">SHELLDON</h1>
     <div class="topbar-actions">
       <button class="icon-btn" id="bellBtn" aria-label="Enable reminders" title="Enable reminders">🔔</button>
+      <button class="icon-btn" id="backupBtn" aria-label="Backup and restore" title="Backup and restore">💾</button>
       <button class="icon-btn" id="helpBtn" aria-label="How it works" title="How it works">?</button>
     </div>
   </header>
@@ -91,8 +92,26 @@
       <li>Enable the bell (top right) for a real push notification when a deadline hits.</li>
       <li>Miss one? It'll be waiting for you next time you open the app &mdash; no guilt, but no hiding either.</li>
       <li>Streak counts days you actually follow through.</li>
+      <li>No account needed. Use the 💾 backup button to move your streak and history to a new phone.</li>
     </ul>
     <button class="pixel-btn" id="closeHelp">GOT IT</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="backupModal">
+  <div class="modal-card">
+    <h2>Backup &amp; restore</h2>
+    <p class="backup-hint">No account, so this code is the only way to move your streak and history to a new phone or browser. Copy it somewhere safe.</p>
+    <label class="backup-label" for="backupExport">Your backup code</label>
+    <textarea class="backup-textarea" id="backupExport" readonly rows="4"></textarea>
+    <button class="pixel-btn" id="copyBackupBtn">COPY CODE</button>
+
+    <label class="backup-label" for="backupImport">Restore from a code</label>
+    <textarea class="backup-textarea" id="backupImport" rows="4" placeholder="Paste a backup code here&hellip;"></textarea>
+    <button class="pixel-btn btn-restore" id="restoreBackupBtn">RESTORE</button>
+    <p class="backup-error hidden" id="backupError">That code didn't work. Check you copied the whole thing.</p>
+
+    <button class="pixel-btn" id="closeBackup">CLOSE</button>
   </div>
 </div>
 

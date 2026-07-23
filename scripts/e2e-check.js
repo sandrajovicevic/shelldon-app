@@ -26,7 +26,8 @@ const server = http.createServer((req, res) => {
 (async () => {
   await new Promise((resolve) => server.listen(PORT, resolve));
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
-  const page = await browser.newPage({ viewport: { width: 420, height: 860 } });
+  const context = await browser.newContext({ viewport: { width: 420, height: 860 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await context.newPage();
   const consoleErrors = [];
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
   page.on('pageerror', (err) => consoleErrors.push('pageerror: ' + err.message));
@@ -165,11 +166,55 @@ const server = http.createServer((req, res) => {
   const queueHiddenAfterDone = await page.getAttribute('#queueSection', 'class');
   console.log('queue section class after resolving last item (expect hidden):', queueHiddenAfterDone);
 
-  // ---- Bell button before the Worker is deployed (WORKER_URL still placeholder) ----
-  await page.click('#bellBtn');
+  // ---- Backup / restore round trip ----
+  const streakBeforeBackup = await page.textContent('#streakCount');
+  await page.click('#backupBtn');
+  await page.waitForTimeout(100);
+  const backupCode = await page.inputValue('#backupExport');
+  console.log('backup code generated (non-empty):', backupCode.length > 0);
+
+  await page.click('#copyBackupBtn');
+  await page.waitForTimeout(100);
+  const copyBtnLabel = await page.textContent('#copyBackupBtn');
+  console.log('copy button label after click (expect COPIED!):', copyBtnLabel);
+
+  // wipe local state entirely, then restore from the saved code
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  const streakAfterWipe = await page.textContent('#streakCount');
+  console.log('streak after wiping localStorage (expect 0):', streakAfterWipe);
+
+  await page.click('#backupBtn');
+  await page.fill('#backupImport', backupCode);
+  await page.click('#restoreBackupBtn');
   await page.waitForTimeout(200);
-  const bubbleAfterBell = await page.textContent('#bubbleText');
-  console.log('bubble after clicking bell pre-deploy (expect "not wired up" message):', bubbleAfterBell);
+  const streakAfterRestore = await page.textContent('#streakCount');
+  console.log('streak before backup / after wipe+restore (expect equal):', streakBeforeBackup, '->', streakAfterRestore);
+  const backupModalHidden = await page.getAttribute('#backupModal', 'class');
+  console.log('backup modal class after successful restore (expect hidden):', backupModalHidden);
+
+  // garbage input should show the inline error, not throw
+  await page.click('#backupBtn');
+  await page.fill('#backupImport', 'not a real backup code {{{');
+  await page.click('#restoreBackupBtn');
+  await page.waitForTimeout(100);
+  const backupErrorClass = await page.getAttribute('#backupError', 'class');
+  console.log('backup error visible on garbage input (should not contain hidden):', backupErrorClass);
+  await page.click('#closeBackup');
+
+  // ---- iOS detection: simulate iPhone Safari, not installed ----
+  await context.close();
+  const iosContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  });
+  const iosPage = await iosContext.newPage();
+  await iosPage.goto(`http://localhost:${PORT}/index.html`);
+  await iosPage.click('#bellBtn');
+  await iosPage.waitForTimeout(100);
+  const iosBubble = await iosPage.textContent('#bubbleText');
+  console.log('bubble on simulated iPhone Safari (not installed) after tapping bell:', iosBubble);
+  await iosContext.close();
 
   console.log('console errors:', consoleErrors);
 

@@ -25,6 +25,14 @@
   var closeHelp = document.getElementById('closeHelp');
   var helpModal = document.getElementById('helpModal');
   var bellBtn = document.getElementById('bellBtn');
+  var backupBtn = document.getElementById('backupBtn');
+  var backupModal = document.getElementById('backupModal');
+  var backupExport = document.getElementById('backupExport');
+  var backupImport = document.getElementById('backupImport');
+  var copyBackupBtn = document.getElementById('copyBackupBtn');
+  var restoreBackupBtn = document.getElementById('restoreBackupBtn');
+  var backupError = document.getElementById('backupError');
+  var closeBackup = document.getElementById('closeBackup');
   var queueSection = document.getElementById('queueSection');
   var queueList = document.getElementById('queueList');
   var remindToggleBtn = document.getElementById('remindToggleBtn');
@@ -182,24 +190,29 @@
     return Math.round((db - da) / 86400000);
   }
 
-  function loadStore() {
-    var store;
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      store = raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      store = {};
-    }
-    if (typeof store.streak !== 'number') store.streak = 0;
-    if (!store.lastActive) store.lastActive = null;
-    if (!Array.isArray(store.commitments)) store.commitments = [];
-    if (typeof store.pushEnabled !== 'boolean') store.pushEnabled = false;
-    if (!store.deviceId) {
-      store.deviceId = (window.crypto && window.crypto.randomUUID)
+  function applyDefaults(raw) {
+    var s = (raw && typeof raw === 'object') ? raw : {};
+    if (typeof s.streak !== 'number') s.streak = 0;
+    if (!s.lastActive) s.lastActive = null;
+    if (!Array.isArray(s.commitments)) s.commitments = [];
+    if (typeof s.pushEnabled !== 'boolean') s.pushEnabled = false;
+    if (!s.deviceId) {
+      s.deviceId = (window.crypto && window.crypto.randomUUID)
         ? window.crypto.randomUUID()
         : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
     }
-    return store;
+    return s;
+  }
+
+  function loadStore() {
+    var raw;
+    try {
+      var stored = localStorage.getItem(STORE_KEY);
+      raw = stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      raw = {};
+    }
+    return applyDefaults(raw);
   }
 
   function saveStore(store) {
@@ -212,6 +225,29 @@
   saveStore(store); // persists a freshly generated deviceId (or other migrated defaults) immediately
 
   function getDeviceId() { return store.deviceId; }
+
+  // ---------- Backup / restore (no accounts -- just a copyable code) ----------
+  function encodeBackup(s) {
+    return window.btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+  }
+
+  function decodeBackup(code) {
+    var parsed = JSON.parse(decodeURIComponent(escape(window.atob(code.trim()))));
+    if (!parsed || typeof parsed !== 'object') throw new Error('bad backup shape');
+    return parsed;
+  }
+
+  function restoreFromBackup(code) {
+    var parsed = decodeBackup(code); // throws on malformed input; caller handles the error
+    var restored = applyDefaults(parsed);
+    Object.keys(store).forEach(function (k) { delete store[k]; });
+    Object.assign(store, restored);
+    saveStore(store);
+    bellBtn.classList.toggle('active', store.pushEnabled);
+    renderStreak();
+    resetToEntry();
+    renderQueue();
+  }
 
   (function reconcileStreakOnLoad() {
     if (store.lastActive) {
@@ -449,9 +485,26 @@
     return outputArray;
   }
 
+  function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function isInstalledStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
   function subscribePush() {
+    if (isIOSDevice() && !isInstalledStandalone()) {
+      setBubble("Install me first: tap Share, then \"Add to Home Screen.\" Reopen me from there and I'll be ready to nudge you.", false);
+      return;
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setBubble("Your browser won't do push. Noted. Moving on.", false);
+      if (isIOSDevice()) {
+        setBubble("Your iOS version is too old for this. Update to iOS 16.4+ for reminders.", false);
+      } else {
+        setBubble("Your browser won't do push. Noted. Moving on.", false);
+      }
       return;
     }
     if (!isWorkerConfigured()) {
@@ -696,6 +749,43 @@
   helpBtn.addEventListener('click', function () { helpModal.classList.remove('hidden'); });
   closeHelp.addEventListener('click', function () { helpModal.classList.add('hidden'); });
   helpModal.addEventListener('click', function (e) { if (e.target === helpModal) helpModal.classList.add('hidden'); });
+
+  backupBtn.addEventListener('click', function () {
+    backupExport.value = encodeBackup(store);
+    backupImport.value = '';
+    backupError.classList.add('hidden');
+    backupModal.classList.remove('hidden');
+  });
+  closeBackup.addEventListener('click', function () { backupModal.classList.add('hidden'); });
+  backupModal.addEventListener('click', function (e) { if (e.target === backupModal) backupModal.classList.add('hidden'); });
+
+  copyBackupBtn.addEventListener('click', function () {
+    var restoreLabel = copyBackupBtn.textContent;
+    function flash(label) {
+      copyBackupBtn.textContent = label;
+      setTimeout(function () { copyBackupBtn.textContent = restoreLabel; }, 1500);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(backupExport.value).then(function () { flash('COPIED!'); }).catch(function () {
+        backupExport.select();
+        flash('SELECTED -- PRESS CTRL+C');
+      });
+    } else {
+      backupExport.select();
+      flash('SELECTED -- PRESS CTRL+C');
+    }
+  });
+
+  restoreBackupBtn.addEventListener('click', function () {
+    try {
+      restoreFromBackup(backupImport.value);
+      backupError.classList.add('hidden');
+      backupModal.classList.add('hidden');
+      setBubble("Fine. You're all caught up again.", false);
+    } catch (e) {
+      backupError.classList.remove('hidden');
+    }
+  });
 
   remindToggleBtn.addEventListener('click', function () {
     var willShow = remindPanel.classList.contains('hidden');
