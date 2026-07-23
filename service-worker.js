@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shelldon-v5';
+const CACHE_NAME = 'shelldon-v6';
 const APP_SHELL = [
   './',
   './index.html',
