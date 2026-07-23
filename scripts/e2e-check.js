@@ -153,8 +153,8 @@ const server = http.createServer((req, res) => {
   });
   await page.reload();
   await page.waitForTimeout(200);
-  const fedUpFigureHtml = await page.$eval('#shellFigure svg', (svg) => svg.getAttribute('viewBox'));
-  console.log('shell figure rendered for fed_up state (viewBox present):', fedUpFigureHtml);
+  const heroSrc = await page.getAttribute('#shellFigure', 'src');
+  console.log('hero image present for fed_up state (src ends with .png):', /\.png$/.test(heroSrc));
   await page.screenshot({ path: path.join(ROOT, 'scripts', 'shot-8-fedup-face.png') });
 
   // resolve it via Done -> streak should increment, queue should clear

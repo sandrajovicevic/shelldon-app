@@ -1,11 +1,12 @@
-const CACHE_NAME = 'shelldon-v6';
+const CACHE_NAME = 'shelldon-v7';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './shell-design.js',
   './manifest.webmanifest',
+  './assets/cabinet.png',
+  './assets/hero-idle.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon-180.png',

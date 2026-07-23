@@ -105,22 +105,26 @@
   var queueRefreshTimer = null;
 
   // ---------- Shell rendering ----------
-  function svgFromGrid(grid) {
-    var cell = 8;
-    var size = ShellDesign.GRID * cell;
-    var rects = [];
-    for (var y = 0; y < grid.length; y++) {
-      for (var x = 0; x < grid[y].length; x++) {
-        var color = grid[y][x];
-        if (!color) continue;
-        rects.push('<rect x="' + x * cell + '" y="' + y * cell + '" width="' + cell + '" height="' + cell + '" fill="' + color + '"/>');
-      }
-    }
-    return '<svg viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">' + rects.join('') + '</svg>';
-  }
+  // Illustrated hero art. Only the idle pose exists today; other expression
+  // states fall back to it until their art is added. Wiring is expression-aware
+  // so dropping in hero-<state>.png later is all it'll take.
+  var HERO_ART = {
+    idle: 'assets/hero-idle.png',
+    shake: 'assets/hero-idle.png',
+    reveal: 'assets/hero-idle.png',
+    annoyed: 'assets/hero-idle.png',
+    fed_up: 'assets/hero-idle.png',
+    pleased: 'assets/hero-idle.png',
+  };
+  var currentHeroSrc = null;
 
   function setShellState(state) {
-    shellFigure.innerHTML = svgFromGrid(ShellDesign.buildGrid({ state: state, transparentBg: true }));
+    shellFigure.setAttribute('data-state', state);
+    var src = HERO_ART[state] || HERO_ART.idle;
+    if (src !== currentHeroSrc) {
+      shellFigure.src = src;
+      currentHeroSrc = src;
+    }
   }
 
   // ---------- Audio (procedural chiptune, no assets) ----------
@@ -598,6 +602,7 @@
     postActions.classList.add('hidden');
     remindPanel.classList.add('hidden');
     remindToggleBtn.classList.remove('active');
+    shellWrap.classList.remove('awaiting-commit');
     stepOneInput.value = '';
     entrySection.classList.remove('hidden');
     setBubble(IDLE_PROMPTS[mode], false);
@@ -658,6 +663,7 @@
     playRevealSound();
 
     phase = 'revealed';
+    shellWrap.classList.add('awaiting-commit');
     postActions.classList.remove('hidden');
     didItBtn.disabled = false;
     skipBtn.disabled = false;
@@ -700,6 +706,7 @@
   }
 
   function handleReroll() {
+    if (!shellWrap.classList.contains('awaiting-commit')) return;
     if (rerollUsed || rerollBtn.disabled) return;
     rerollUsed = true;
     playClickSound();
@@ -707,7 +714,9 @@
   }
 
   function handleDidIt() {
+    if (!shellWrap.classList.contains('awaiting-commit')) return;
     clearInterval(countdownTimer);
+    shellWrap.classList.remove('awaiting-commit');
     registerActedOn();
     setShellState('pleased');
     setBubble(pick(DID_IT_LINES), true);
@@ -718,7 +727,9 @@
   }
 
   function handleSkip() {
+    if (!shellWrap.classList.contains('awaiting-commit')) return;
     clearInterval(countdownTimer);
+    shellWrap.classList.remove('awaiting-commit');
     setShellState('annoyed');
     setBubble(pick(SKIP_LINES), true);
     playSkipSound();

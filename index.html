@@ -37,27 +37,32 @@
   </div>
 
   <main class="stage">
-    <div class="shell-wrap" id="shellWrap">
-      <div class="shell-figure" id="shellFigure"></div>
-    </div>
+    <div class="machine" id="shellWrap">
+      <img class="cabinet-img" src="assets/cabinet.png" alt="" draggable="false" />
 
-    <div class="bubble" id="bubble">
-      <p id="bubbleText">Give me something to work with. I can't read minds. I can barely read.</p>
-    </div>
+      <!-- live text over the green CRT screen -->
+      <div class="screen-overlay" id="bubble">
+        <p id="bubbleText">Give me something to work with. I can't read minds. I can barely read.</p>
+      </div>
 
-    <div class="countdown-wrap hidden" id="countdownWrap">
-      <div class="led-panel">
+      <!-- live digits over the LED strip -->
+      <div class="led-overlay countdown-wrap hidden" id="countdownWrap">
         <span class="led-caption" id="countdownCaption">LOCK IT IN</span>
         <span class="led-digits" id="countdownDigits">10</span>
+        <span class="countdown-fill" id="countdownFill" aria-hidden="true"></span>
       </div>
-      <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
+
+      <!-- clickable zones over the painted COMMIT / RE-ROLL / SKIP buttons -->
+      <button class="hit-zone hit-commit" id="didItBtn" aria-label="Commit — I did it"></button>
+      <button class="hit-zone hit-reroll" id="rerollBtn" aria-label="Re-roll — ask again"></button>
+      <button class="hit-zone hit-skip" id="skipBtn" aria-label="Skip"></button>
+
+      <!-- Shelldon leaning on the machine -->
+      <img class="shelldon-hero" id="shellFigure" src="assets/hero-idle.png" alt="Shelldon" draggable="false" />
     </div>
 
     <div class="post-actions hidden" id="postActions">
-      <button class="pixel-btn btn-done" id="didItBtn">✅ DID IT</button>
-      <button class="pixel-btn btn-skip" id="skipBtn">⏭ SKIP</button>
-      <button class="pixel-btn btn-reroll" id="rerollBtn">🔁 ASK AGAIN</button>
-      <button class="pixel-btn btn-remind-toggle" id="remindToggleBtn">⏰ REMIND ME</button>
+      <button class="pixel-btn btn-remind-toggle" id="remindToggleBtn">⏰ REMIND ME INSTEAD</button>
     </div>
 
     <div class="remind-panel hidden" id="remindPanel">
@@ -118,7 +123,6 @@
   </div>
 </div>
 
-<script src="shell-design.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
